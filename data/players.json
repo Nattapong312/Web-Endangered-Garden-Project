@@ -1,0 +1,111 @@
+{
+  "nattapong_player_1": {
+    "coins": 100,
+    "playTimeSeconds": 200,
+    "inventory": {
+      "crinum": 3
+    },
+    "plots": [
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      },
+      {
+        "state": "empty",
+        "type": ""
+      }
+    ]
+  }
+}

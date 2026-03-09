@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&display=swap" rel="stylesheet">
+    <title>Farming Game</title>
+    <style>
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* กัน scroll ทั้งหมด */
+        }
+
+        /* --- Background & Decorations --- */
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            background-image: url('Assets/Background Grass.jpg');
+            background-size: cover;
+            background-position: center center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* main countdown style */
+        .countdown-time {
+            font-size: 42px;   /* 👈 ปรับขนาดที่นี่ */
+            font-weight: bold;
+        }
+
+        .decoration {
+            position: absolute;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        #tree-left {
+            left: 0;
+            bottom: 0;
+            height: 44vh;
+            width: auto;
+            z-index: 3;
+        }
+        #tree-right {
+            right: 0;
+            bottom: 0;
+            height: 44vh;
+            width: auto;
+            z-index: 5;
+        }
+        #mushroom-shadow {
+            top: 30vh;   /* ขยับลงมาจากขอบบน */
+            left: 20vw;  /* ขยับออกจากขอบซ้าย */
+            width: 5vw;  /* ปรับขนาดให้พอดี ไม่ใหญ่เกินไป */
+            height: auto;
+            z-index: 2;
+        }
+        #waterfall-shadow {
+            top: 4vh;    /* ขยับลงมาจากขอบบน */
+            right: 3vw;  /* ขยับออกจากขอบขวา */
+            width: 30vw; /* ขยายขนาดให้ใหญ่ขึ้น */
+            height: auto;
+            z-index: 1;
+        }
+
+        /* --- Farming Grid --- */
+        #grid-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            z-index: 10;
+            background: rgba(255,255,255,0.10);
+            padding: 24px;
+            border-radius: 18px;
+            box-shadow: 0 8px 32px 0 rgba(31,38,135,0.18);
+            min-width: 480px;
+        }
+
+        .inventory-title {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 48px;
+            color: white;
+
+            text-shadow: 
+                -3px -3px 0 black,
+                3px -3px 0 black,
+                -3px  3px 0 black,
+                3px  3px 0 black;
+
+            margin: 0;
+            margin-bottom: 80px;  /* เพิ่มระยะห่างจาก grid */
+            margin-left: 150px;
+        }
+
+        .shop-title {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 48px;
+            color: white;
+
+            text-shadow: 
+                -3px -3px 0 black,
+                3px -3px 0 black,
+                -3px  3px 0 black,
+                3px  3px 0 black;
+
+            margin: -5px 100px 40px 0px;   /*Top Right Bottom Left */
+            text-align: right;
+        }
+
+        /* --- Large Plant Display (เลเยอร์ต้นไม้ซ้อนทับแปลงดิน) --- */
+        .plot.large-plant::after {
+            content: "";
+            position: absolute;
+            bottom: 20px; /* ยกโคนต้นไม้ให้อยู่ประมาณกึ่งกลางของก้อนดิน */
+            left: -40px;  /* ขยายจุดเริ่มต้นไปทางซ้ายเพื่อให้ต้นไม้อยู่กึ่งกลางพอดี */
+            width: 200px; /* ความกว้างต้นไม้ (ใหญ่กว่าแปลงดิน) */
+            height: 240px; /* ความสูงต้นไม้ (ทะลุแปลงดินขึ้นไป) */
+            background-image: var(--plant-img); /* ดึงรูปภาพจาก JavaScript */
+            background-size: contain;
+            background-position: bottom center;
+            background-repeat: no-repeat;
+            pointer-events: none; /* เพื่อให้คลิกทะลุไปโดนตัวแปลงดินได้ */
+            z-index: 15; /* ลอยอยู่เหนือแปลงดิน */
+        }
+
+        /* เพิ่ม Animation ให้ต้นไม้ใหญ่ตอนเอาเมาส์ชี้ */
+        .plot.large-plant:hover {
+            transform: scale(1.6) rotate(-2deg);
+            z-index: 20;
+        }
+
+        .plot {
+            width: 120px;
+            height: 120px;
+            background-image: url('Assets/Empty_Plot.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.12s cubic-bezier(.4,2,.6,1);
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+        }
+
+        .plot:hover {
+            transform: scale(1.08) rotate(-2deg);
+            z-index: 20;
+        }
+
+        /* Tooltip & Icons on Hover */
+        .plot-icon {
+            position: absolute;
+            top: -38px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            pointer-events: none;
+            z-index: 21;
+        }
+        .plot-icon img {
+            width: 38px;
+            height: 38px;
+            object-fit: contain;
+            filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.5));
+        }
+        .plot:hover .plot-icon { display: block; }
+        .plot:hover .tooltip { display: block; }
+
+        .tooltip {
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30,30,30,0.93);
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            white-space: pre-line;
+            display: none;
+            pointer-events: none;
+            z-index: 9999; /* ensure tooltip is always on top */
+            width: max-content;
+            max-width: 220px;
+            text-align: center;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+        .inv-slot:hover .tooltip {
+            display: block;
+            bottom: auto;
+            top: -70px;
+        }
+
+        /* --- Sidebars & Boards --- */
+        .sidebar-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 120px;
+            background-image: url('Assets/Sidebar.jpg'); /* เปลี่ยนเป็น .jpg */
+            background-size: 100% 100%;
+            cursor: pointer;
+            z-index: 40;
+            opacity: 0.92;
+            transition: opacity 0.2s, left 0.35s cubic-bezier(.7,1.5,.5,1), right 0.35s cubic-bezier(.7,1.5,.5,1);
+        }
+        .sidebar-btn:hover { opacity: 1; }
+
+        /* ตอนปกติ */
+        #left-sidebar-btn {
+            left: 0;
+            transform: translateY(-50%) scaleX(-1);
+            transition: left 0.35s cubic-bezier(.7,1.5,.5,1);
+        }
+
+        #right-sidebar-btn { right: 0; }
+
+        .board {
+            position: absolute;
+            top: 43%;
+            transform: translateY(-50%);
+            height: 86vh;
+            width: 500px;
+            background-size: 100% 100%;
+            z-index: 30;
+            transition: 0.35s cubic-bezier(.7,1.5,.5,1);
+            padding: 30px 32px 32px 32px; /*Top Right Bottom Left*/
+            box-sizing: border-box;
+            border-radius: 18px 0 0 18px;
+        }
+        
+        #left-board {
+            width: 700px;
+            left: -700px;
+            background-image: url('Assets/LeftSide_Board.jpg');
+        }
+        #left-board.active { left: 0; }
+        
+        #right-board {
+            right: -520px;
+            background-image: url('Assets/RightSide_Board.jpg'); /* เปลี่ยนเป็น .jpg */
+            border-radius: 0 18px 18px 0;
+        }
+        #right-board.active { right: 0; }
+
+        /* Shopkeeper Character */
+        #shopkeeper-img {
+            position: absolute;
+            bottom: 0;
+            left: -120px;
+            width: 170px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0.93;
+        }
+
+        /* --- Inventory Grid 15 ช่อง (3x5) --- */
+        .inv-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 90px);
+            grid-template-rows: repeat(5, 90px);
+            gap: 15px;
+
+            margin-top: 30px;   /* จาก 100px → 30px */
+            margin-left: 100px;
+
+            justify-content: flex-start;
+        }
+
+        .inv-slot {
+            background: rgba(255,255,255,0.82);
+            border: 2px solid #8b5a2b;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+        }
+
+        .inv-slot:active {
+            transform: scale(0.95);
+        }
+
+        .inv-slot img {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+            filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.3));
+            max-width: 80%;
+            max-height: 80%;
+        }
+
+        /* ป้ายแสดงจำนวนของในแต่ละช่อง */
+        .inv-slot .item-count {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-weight: bold;
+            font-size: 18px;
+            font-family: 'Fredoka', sans-serif;
+            padding: 4px 8px;
+            border-radius: 8px;
+            border: 1px solid #8b5a2b;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+            pointer-events: none;
+        }
+
+        .inv-slot.selected {
+            border-color: #32cd32;
+            box-shadow: 0 0 15px #32cd32;
+            background: rgba(50, 205, 50, 0.15);
+        }
+
+        /* สไตล์สำหรับช่องที่ว่าง */
+        .inv-slot.empty {
+            background: rgba(0, 0, 0, 0.05);
+            border: 2px dashed #bfa76a;
+            cursor: default;
+        }
+        .inv-slot.empty:hover {
+            box-shadow: none;
+        }
+        .inv-slot.empty:active {
+            transform: none;
+        }
+        /* เพิ่ม z-index ใน :hover และ :active */
+        .inv-slot:hover, 
+        .inv-slot:active {
+            z-index: 100;
+        }
+
+        .inv-slot:active {
+            transform: scale(0.95);
+        }
+
+        /* --- Shop Elements --- */
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 90px);
+            grid-template-rows: repeat(3, 90px);
+            gap: 15px;
+
+            margin-top: 210px;     /* 👈 ดันลงล่าง */
+            margin-left: 130px;  /* 👈 ดันเข้ามาจากขอบขวา */
+            
+        }
+        .shop-slot {
+            background: rgba(255,255,255,0.92);
+            border: 2px solid #bfa76a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-direction: column;
+            cursor: pointer;
+            position: relative;
+            text-align: center;
+            border-radius: 10px; /* ปรับขอบโค้งให้เท่ากัน */
+            transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+        }
+        .shop-slot:active {
+            transform: scale(0.95);
+        }
+        .shop-slot img {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+            filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.3));
+            max-width: 80%;
+            max-height: 80%;
+        }
+
+        /* ป้ายแสดงจำนวนของในแต่ละช่อง ของ Shop ให้เหมือน Inventory */
+        .shop-slot .stock {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-weight: bold;
+            font-size: 18px;
+            font-family: 'Fredoka', sans-serif;
+            padding: 4px 8px;
+            border-radius: 8px;
+            border: 1px solid #8b5a2b;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+            pointer-events: none;
+        }
+
+        .shop-slot:hover {
+            box-shadow: 0 0 12px #f7d774;
+            border-color: #f7d774;
+        }
+        .shop-slot:hover .tooltip {
+            display: block;
+            bottom: auto;
+            top: -70px;
+        }
+        /* เพิ่ม z-index ใน :hover และ :active */
+        .shop-slot:hover,
+        .shop-slot:active {
+            z-index: 100;
+        }
+
+        .shop-slot:active {
+            transform: scale(0.95);
+        }
+
+        .disabled {
+            cursor: not-allowed;
+            background: rgba(0, 0, 0, 0.05); /* ปรับพื้นหลังให้ดูเหมือนถูกใช้งานไปแล้ว/ล็อค */
+            border: 2px dashed #bfa76a;
+            opacity: 0.6;
+        }
+        .disabled:hover {
+            box-shadow: none;
+            border-color: #bfa76a;
+        }
+        .disabled:active {
+            transform: none;
+        }
+
+        #shop-timer {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 22px;
+            color: white;
+
+            text-shadow: 
+                -2px -2px 0 black,
+                2px -2px 0 black,
+                -2px  2px 0 black,
+                2px  2px 0 black;
+
+            background: none;
+            border: none;
+            padding: 0;
+
+            margin-top: 100px;     /* 👈 ดันลงล่าง */
+            margin-right: 180px;  /* 👈 ดันเข้ามาจากขวา (ทำให้ดูไปซ้าย) */
+
+            text-align: right;
+        }
+
+        /* Plant Info Modal */
+        #plant-info-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #plant-info-modal.active {
+            display: flex;
+        }
+
+        .plant-info-panel {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .plant-info-panel .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 32px;
+            cursor: pointer;
+            color: #333;
+        }
+
+        .plant-info-panel .close-btn:hover {
+            color: #d00;
+        }
+
+        .plant-info-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .plant-info-header h1 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 32px;
+        }
+
+        .plant-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .plant-info-item {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #8b5a2b;
+        }
+
+        .plant-info-item strong {
+            display: block;
+            color: #8b5a2b;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .plant-info-item span {
+            font-size: 20px;
+            color: #333;
+            font-weight: bold;
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        .plant-info-section {
+            margin-bottom: 25px;
+        }
+
+        .plant-info-section h3 {
+            color: #8b5a2b;
+            font-family: 'Fredoka', sans-serif;
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+
+        .plant-info-section img {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            border: 2px solid #ddd;
+        }
+
+        .wiki-link-btn {
+            display: inline-block;
+            background: #2196F3;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            font-family: 'Fredoka', sans-serif;
+            cursor: pointer;
+            border: none;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .wiki-link-btn:hover {
+            background: #1976D2;
+        }
+
+        /* Reset button removed */
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- Reset Game button removed -->
+
+    <img id="tree-left" class="decoration" src="Assets/Tree_Left.jpg" alt="Tree Left">
+    <img id="tree-right" class="decoration" src="Assets/Tree_Right.jpg" alt="Tree Right">
+    <img id="mushroom-shadow" class="decoration" src="Assets/Mushroom_Shadow.jpg" alt="Mushroom Shadow">
+    <img id="waterfall-shadow" class="decoration" src="Assets/Waterfall_Shadow.jpg" alt="Waterfall Shadow">
+
+    <div id="left-sidebar-btn" class="sidebar-btn" onclick="toggleBoard('left')"></div>
+    <div id="right-sidebar-btn" class="sidebar-btn" onclick="toggleBoard('right')"></div>
+
+    <div id="left-board" class="board">
+        <h2 class="inventory-title">Inventory</h2>
+        <div id="inventory-grid" class="inv-grid"></div>
+    </div>
+
+    <div id="right-board" class="board">
+        <h2 class="shop-title">Shop</h2>
+        <div id="shop-timer">Next Restock: 0:30</div>
+        <div class="shop-grid" id="shop-items-container"></div>
+    </div>
+
+    <div id="grid-container"></div>
+
+    <div id="plant-info-modal">
+        <div class="plant-info-panel">
+            <button class="close-btn" onclick="closePlantInfo()">&times;</button>
+            <div class="plant-info-header">
+                <h1 id="modal-plant-name">Crinum thaianum</h1>
+            </div>
+            <div class="plant-info-grid">
+                <div class="plant-info-item">
+                    <strong>Grow Time</strong>
+                    <span id="modal-grow-time">10 Minutes</span>
+                </div>
+                <div class="plant-info-item">
+                    <strong>Growth Stage</strong>
+                    <span id="modal-growth-stage">1</span>
+                </div>
+                <div class="plant-info-item">
+                    <strong>Sell Price</strong>
+                    <span id="modal-sell-price">10 Coins</span>
+                </div>
+                <div class="plant-info-item">
+                    <strong>Purchase Cost</strong>
+                    <span id="modal-cost">5 Coins</span>
+                </div>
+            </div>
+            <div class="plant-info-section">
+                <h3>Wikipedia Link</h3>
+                <a id="modal-wiki-link" href="#" target="_blank" class="wiki-link-btn">View Wikipedia Article</a>
+            </div>
+            <div class="plant-info-section">
+                <h3>Real Photo</h3>
+                <img id="modal-wiki-image" src="Assets/Crinum_thaianum_Wiki.jpg" alt="Plant Photo">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Game Data & State
+    // เพิ่มตัวแปรคงที่ไว้ด้านบนสุดของ Script
+    const USER_ID = "nattapong_player_1"; 
+    let playTimeSeconds = 0; // เพิ่มตัวแปรนับเวลาเล่น
+
+    const plantDatabase = {
+        'crinum': { 
+            name: 'Crinum thaianum', 
+            image: 'Assets/Crinum thaianum.jpg', 
+            plotImage: 'Assets/Crinum thaianum_Plot.jpg',
+            waterPlotImage: 'Assets/Crinum thaianum_Water_Plot.jpg',
+            cost: 5, 
+            sell: 10,
+            growTime: '10 Minutes',
+            growthStage: 3,
+            wikiLink: 'https://en.wikipedia.org/wiki/Crinum_thaianum',
+            wikiImage: 'Assets/Crinum_thaianum_Wiki.jpg',
+            info: 'พลับพลึงธาร (Crinum thaianum)\nพืชน้ำหายากพบได้เฉพาะในประเทศไทย\nต้องการน้ำสะอาดในการเจริญเติบโต'
+        },
+        'pinus': { 
+            name: 'Pinus albicaulis', 
+            image: 'Assets/Pinus albicaulis.jpg', 
+            plotImage: 'Assets/Pinus albicaulis_Plot.jpg',
+            waterPlotImage: 'Assets/Pinus albicaulis_Water_Plot.jpg',
+            cost: 15, 
+            sell: 35,
+            growTime: '20 Minutes',
+            growthStage: 3,
+            wikiLink: 'https://en.wikipedia.org/wiki/Pinus_albicaulis',
+            wikiImage: 'Assets/Pinus albicaulis_Wiki.jpg',
+            info: 'Whitebark pine (Pinus albicaulis)\nต้นสนภูเขาสูงที่ใกล้สูญพันธุ์\nเป็นแหล่งอาหารสำคัญของสัตว์ป่า'
+        },
+        'metasequoia': { 
+            name: 'Metasequoia', 
+            image: 'Assets/Metasequoia.jpg', 
+            plotImage: 'Assets/Metasequoia_Plot.jpg',
+            waterPlotImage: 'Assets/Metasequoia_Water_Plot.jpg',
+            cost: 20, 
+            sell: 50,
+            growTime: '30 Minutes',
+            growthStage: 3,
+            wikiLink: 'https://en.wikipedia.org/wiki/Metasequoia',
+            wikiImage: 'Assets/Metasequoia_Wiki.jpg',
+            info: 'Dawn redwood (Metasequoia)\nต้นไม้ดึกดำบรรพ์ที่เติบโตเร็ว\nและผลัดใบในฤดูหนาว'
+        }
+    };
+
+    // --- 💡 ระบบ Auto Save / Load แบบสมบูรณ์ ---
+    // ค่าเริ่มต้น (ใช้เมื่อยังโหลดข้อมูลไม่สำเร็จ)
+    let player = { coins: 100, seeds: { 'crinum': 3 } };
+    let plotStates = Array(25).fill(null).map(() => ({ state: 'empty', type: '' }));
+    let selectedSeedType = null;
+    let shopTimer = 30;
+
+// --- แก้ไขฟังก์ชัน saveGame ---
+    async function saveGame() {
+        const saveData = {
+            userId: USER_ID,
+            data: {
+                coins: player.coins,
+                playTimeSeconds: playTimeSeconds,
+                inventory: player.seeds,
+                plots: plotStates
+            }
+        };
+
+        try {
+            await fetch('http://localhost:3000/api/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(saveData)
+            });
+            console.log('💾 Game Saved to MongoDB');
+        } catch (error) {
+            console.error('❌ Save failed:', error);
+        }
+    }
+
+    // clearSaveData removed — reset handled manually if needed
+
+    // เริ่มต้นเกมเมื่อหน้าเว็บโหลดเสร็จ
+
+    // 1. ประกาศตัวแปร (ไม่ต้องเรียก loadGame ตรงนี้)
+    // ตัวแปรถูกประกาศไว้ด้านบนเพื่อให้สามารถเรียกใช้งานได้ทั้งไฟล์
+
+    // 2. ปรับปรุงฟังก์ชัน loadGame ให้วาดหน้าจอ "หลังโหลดเสร็จ"
+    async function loadGame() {
+        try {
+            console.log('⏳ Connecting to MongoDB...');
+            const response = await fetch(`http://localhost:3000/api/load/${USER_ID}`);
+            const data = await response.json();
+            
+            if (data && data.userId) {
+                // อัปเดตข้อมูลจาก Database ลงตัวแปร
+                player.coins = data.coins;
+                player.seeds = data.inventory || {};
+                plotStates = data.plots;
+                playTimeSeconds = data.playTimeSeconds || 0;
+                console.log('✅ Loaded data from MongoDB Successfully!');
+            }
+        } catch (error) {
+            console.error('❌ Server connect failed, using default data:', error);
+        }
+        
+        // --- ส่วนสำคัญ: ต้องวาด UI ใหม่ที่ตรงนี้ ---
+        updateInventory();
+        renderPlotsAfterLoad(); // วาดแปลงดินจากข้อมูลที่โหลดมา
+        generateShopItems();    // สร้างของในร้านค้า
+    }
+    
+    window.onload = () => {
+        loadGame();
+    };
+    // ---------------------------------------------
+
+    // Elements
+    const gridContainer = document.getElementById('grid-container');
+    const invGrid = document.getElementById('inventory-grid');
+    const shopContainer = document.getElementById('shop-items-container');
+    const timerEl = document.getElementById('shop-timer');
+
+    // --- ฟังก์ชันวาด UI พืชตอนโต (แยกออกมาเพื่อให้เรียกใช้ง่าย) ---
+    function applyGrownVisuals(plot, icon, tooltip, type) {
+        const grownPlant = plantDatabase[type];
+
+        if (type === 'pinus' || type === 'metasequoia') {
+            plot.style.setProperty('--plant-img', `url('${grownPlant.image}')`);
+            plot.classList.add('large-plant');
+            plot.style.backgroundImage = "url('Assets/Empty_Plot.jpg')";
+        } else {
+            plot.style.backgroundImage = `url('${grownPlant.image}')`;
+        }
+
+        icon.innerHTML = '<img src="Assets/Coins.jpg" alt="Coins" style="width:30px;">'; 
+        tooltip.innerHTML = `
+            <strong>${grownPlant.name}</strong><br>
+            <em>Ready to Harvest!</em><br><br>
+            Sell Price: ${grownPlant.sell} Coins<br><br>
+            ${grownPlant.info}<br><br>
+            <a href="${grownPlant.wikiLink}" target="_blank" class="wiki-link-btn">Wikipedia</a>
+            <div style="margin-top:8px;">
+                <img src="${grownPlant.wikiImage}" alt="${grownPlant.name} photo" style="width:120px;border-radius:6px;border:1px solid #ddd;">
+            </div>
+        `;
+    }
+
+    // --- ฟังก์ชันโหลดสถานะแปลงดินตอนเปิดเกม ---
+    function applySavedPlotState(plot, icon, tooltip, index) {
+        const pState = plotStates[index];
+        plot.dataset.state = pState.state;
+        plot.dataset.plantType = pState.type;
+
+        if (pState.state === 'empty') {
+            plot.style.backgroundImage = "url('Assets/Empty_Plot.jpg')";
+            icon.innerHTML = '<img src="Assets/Shovel.jpg" alt="Shovel">';
+            tooltip.innerHTML = 'Empty Plot<br>Select a seed from inventory to plant.';
+        } 
+        else if (pState.state === 'planted') {
+            const plant = plantDatabase[pState.type];
+            plot.style.backgroundImage = `url('${plant.plotImage}')`;
+            icon.innerHTML = '<img src="Assets/Watering can.jpg" alt="Watering Can" style="width:38px;">';
+            tooltip.innerHTML = `
+                <strong>${plant.name} Seed</strong><br>
+                <em>Growing Stage 1</em><br><br>
+                ${plant.info}<br><br>
+                <a href="${plant.wikiLink}" target="_blank" class="wiki-link-btn">Wikipedia</a>
+                <div style="margin-top:8px;">
+                    <img src="${plant.wikiImage}" alt="${plant.name} photo" style="width:120px;border-radius:6px;border:1px solid #ddd;">
+                </div>
+            `;
+        }
+        else if (pState.state === 'watered') {
+            const plant = plantDatabase[pState.type];
+            plot.style.backgroundImage = `url('${plant.waterPlotImage}')`;
+            icon.innerHTML = '<span style="font-size:30px;">⏳</span>';
+            tooltip.innerHTML = `
+                <strong>${plant.name}</strong><br>
+                <em>Growing (Stage 2)...</em><br><br>
+                Please wait 5 seconds.
+            `;
+            // ถ้าโหลดมาเจอสถานะกำลังรดน้ำ ให้นับถอยหลังใหม่ 5 วินาที
+            setTimeout(() => {
+                plot.dataset.state = 'grown';
+                plotStates[index].state = 'grown';
+                saveGame();
+                applyGrownVisuals(plot, icon, tooltip, pState.type);
+            }, 5000);
+        }
+        else if (pState.state === 'grown') {
+            applyGrownVisuals(plot, icon, tooltip, pState.type);
+        }
+    }
+
+    function toggleBoard(side) {
+        const leftBoard = document.getElementById('left-board');
+        const rightBoard = document.getElementById('right-board');
+        const leftBtn = document.getElementById('left-sidebar-btn');
+        const rightBtn = document.getElementById('right-sidebar-btn');
+
+        if (side === 'left') {
+            const nowOpen = leftBoard.classList.toggle('active');
+            // Only move the left button; do not close or affect the right board
+            leftBtn.style.left = nowOpen ? '530px' : '0px';
+            if (nowOpen) updateInventory();
+        } else {
+            const nowOpen = rightBoard.classList.toggle('active');
+            // Only move the right button; do not close or affect the left board
+            rightBtn.style.right = nowOpen ? '420px' : '0px';
+            if (nowOpen) generateShopItems();
+        }
+    }
+
+    // Inventory Update & Selection
+    function updateInventory() {
+        invGrid.innerHTML = '';
+        
+        const coinsSlot = document.createElement('div');
+        coinsSlot.className = 'inv-slot';
+        coinsSlot.innerHTML = `
+            <img src="Assets/Coins.jpg" alt="Coins">
+            <span class="item-count">${player.coins}</span>
+        `;
+        coinsSlot.style.cursor = 'default';
+        coinsSlot.title = "Coins";
+        invGrid.appendChild(coinsSlot);
+        
+        Object.keys(plantDatabase).forEach(seedType => {
+            if (player.seeds[seedType] > 0) {
+                const plant = plantDatabase[seedType];
+                const seedSlot = document.createElement('div');
+                seedSlot.className = 'inv-slot';
+                if (selectedSeedType === seedType) seedSlot.classList.add('selected');
+                
+                seedSlot.innerHTML = `
+                    <img src="Assets/Seeds.jpg" alt="Seeds">
+                    <span class="item-count">${player.seeds[seedType]}</span>
+                    <div class="tooltip">
+                        <strong>${plant.name} Seed</strong><br>
+                        Cost: ${plant.cost} Coins<br><br>
+                        ${plant.info}<br><br>
+                        <a href="${plant.wikiLink}" target="_blank" class="wiki-link-btn">Wikipedia</a>
+                        <div style="margin-top:8px;">
+                            <img src="${plant.wikiImage}" alt="${plant.name} photo" style="width:120px;border-radius:6px;border:1px solid #ddd;">
+                        </div>
+                    </div>
+                `;
+                seedSlot.onclick = () => selectSeed(seedType);
+                invGrid.appendChild(seedSlot);
+            }
+        });
+
+        const currentSlots = invGrid.children.length;
+        for (let i = currentSlots; i < 15; i++) {
+            const emptySlot = document.createElement('div');
+            emptySlot.className = 'inv-slot empty';
+            invGrid.appendChild(emptySlot);
+        }
+
+        if (selectedSeedType && player.seeds[selectedSeedType] <= 0) {
+            selectedSeedType = null;
+        }
+    }
+
+    function selectSeed(type) {
+        if (player.seeds[type] > 0) {
+            if (selectedSeedType === type) {
+                selectedSeedType = null;
+            } else {
+                selectedSeedType = type;
+            }
+            updateInventory(); 
+        }
+    }
+
+    // Plot Interaction Logic
+    function handlePlotClick(plot, icon, tooltip, index) {
+        let state = plot.dataset.state;
+
+        if (state === 'empty' && selectedSeedType) {
+            if (player.seeds[selectedSeedType] > 0) {
+                const plantTypeToPlant = selectedSeedType;
+                
+                player.seeds[selectedSeedType]--;
+                updateInventory();
+                
+                // บันทึกสถานะ "ปลูกแล้ว" ลงตัวแปรและ Save
+                plot.dataset.state = 'planted';
+                plot.dataset.plantType = plantTypeToPlant;
+                plotStates[index] = { state: 'planted', type: plantTypeToPlant };
+                saveGame();
+
+                const plantForPlot = plantDatabase[plantTypeToPlant];
+                plot.style.backgroundImage = `url('${plantForPlot.plotImage}')`; 
+                icon.innerHTML = '<img src="Assets/Watering can.jpg" alt="Watering Can" style="width:38px;">';
+                
+                tooltip.innerHTML = `
+                    <strong>${plantForPlot.name} Seed</strong><br>
+                    <em>Growing Stage 1</em><br><br>
+                    ${plantForPlot.info}<br><br>
+                    <a href="${plantForPlot.wikiLink}" target="_blank" class="wiki-link-btn">Wikipedia</a>
+                    <div style="margin-top:8px;">
+                        <img src="${plantForPlot.wikiImage}" alt="${plantForPlot.name} photo" style="width:120px;border-radius:6px;border:1px solid #ddd;">
+                    </div>
+                `;
+            }
+        } else if (state === 'planted') {
+            const plantType = plot.dataset.plantType;
+            const plant = plantDatabase[plantType];
+            
+            // บันทึกสถานะ "รดน้ำแล้ว" ลงตัวแปรและ Save
+            plot.dataset.state = 'watered';
+            plotStates[index].state = 'watered';
+            saveGame();
+
+            plot.style.backgroundImage = `url('${plant.waterPlotImage}')`; 
+            icon.innerHTML = '<span style="font-size:30px;">⏳</span>';
+            
+            tooltip.innerHTML = `
+                <strong>${plant.name}</strong><br>
+                <em>Growing (Stage 2)...</em><br><br>
+                Please wait 5 seconds.
+            `;
+
+            setTimeout(() => {
+                // บันทึกสถานะ "โตเต็มที่" ลงตัวแปรและ Save
+                plot.dataset.state = 'grown';
+                plotStates[index].state = 'grown';
+                saveGame();
+                applyGrownVisuals(plot, icon, tooltip, plantType);
+            }, 5000);
+
+        } else if (state === 'grown') {
+            let plantType = plot.dataset.plantType;
+            player.coins += plantDatabase[plantType].sell;
+            updateInventory();
+
+            showPlantInfo(plantType);
+
+            // บันทึกสถานะ "ว่างเปล่า" ลงตัวแปรและ Save
+            plot.dataset.state = 'empty';
+            plot.dataset.plantType = '';
+            plotStates[index] = { state: 'empty', type: '' };
+            saveGame();
+            
+            plot.classList.remove('large-plant'); 
+            plot.style.removeProperty('--plant-img');
+            
+            plot.style.backgroundImage = "url('Assets/Empty_Plot.jpg')";
+            icon.innerHTML = '<img src="Assets/Shovel.jpg" alt="Shovel">';
+            tooltip.innerHTML = 'Empty Plot<br>Select a seed from inventory to plant.';
+        }
+    }
+
+    // Shop System
+    function generateShopItems() {
+        shopContainer.innerHTML = '';
+        const plantTypes = Object.keys(plantDatabase);
+        const slotsCount = Math.floor(Math.random() * 9) + 1;
+        const shuffled = plantTypes.sort(() => 0.5 - Math.random());
+        
+        for (let i = 0; i < 9; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'shop-slot';
+            
+            if (i < slotsCount && i < shuffled.length) {
+                const type = shuffled[i];
+                const plant = plantDatabase[type];
+                let stock = Math.floor(Math.random() * 3) + 1; 
+                
+                slot.innerHTML = `
+                    <img class="seed-preview" src="Assets/Seeds.jpg"> <span class="stock">${stock}</span>
+                    <div class="tooltip">
+                        <strong>${plant.name} Seed</strong><br>
+                        Cost: ${plant.cost} Coins<br><br>
+                        ${plant.info}<br><br>
+                        <a href="${plant.wikiLink}" target="_blank" class="wiki-link-btn">Wikipedia</a>
+                        <div style="margin-top:8px;">
+                            <img src="${plant.wikiImage}" alt="${plant.name} photo" style="width:120px;border-radius:6px;border:1px solid #ddd;">
+                        </div>
+                    </div>
+                `;
+                slot.onclick = () => buySeed(slot, type, stock, plant.cost);
+            } else {
+                slot.innerHTML = `<img src="Assets/Seed_lock.jpg" alt="Locked">`; 
+                slot.classList.add('disabled');
+            }
+            shopContainer.appendChild(slot);
+        }
+    }
+
+    function buySeed(slot, type, stock, cost) {
+        if (stock > 0 && player.coins >= cost) {
+            player.coins -= cost;
+            
+            if (!player.seeds[type]) {
+                player.seeds[type] = 0;
+            }
+            player.seeds[type]++;
+            stock--;
+            updateInventory();
+            saveGame(); // Save เมื่อซื้อสำเร็จ
+            
+            if (stock > 0) {
+                slot.querySelector('.stock').innerText = stock; 
+                slot.onclick = () => buySeed(slot, type, stock, cost); 
+            } else {
+                slot.innerHTML = `<img src="Assets/No seeds.jpg" alt="No seeds">`; 
+                slot.classList.add('disabled');
+                slot.onclick = null; 
+            }
+        } else if (player.coins < cost) {
+            alert("Not enough coins!");
+        }
+    }
+
+    // Shop Timer Logic
+    setInterval(() => {
+        shopTimer--;
+        if (shopTimer <= 0) {
+            shopTimer = 30; 
+            generateShopItems();
+        }
+        const minutes = Math.floor(shopTimer / 60);
+        const seconds = shopTimer % 60;
+        timerEl.innerHTML = `
+            <span class="countdown-time">
+                ${minutes}:${seconds < 10 ? '0' : ''}${seconds}
+            </span>
+        `;
+    }, 1000);
+
+    // Initial load
+    generateShopItems();
+    updateInventory();
+
+    // Plant Info Modal Functions
+    function showPlantInfo(plantType) {
+        const plant = plantDatabase[plantType];
+        const modal = document.getElementById('plant-info-modal');
+        
+        document.getElementById('modal-plant-name').textContent = plant.name;
+        document.getElementById('modal-grow-time').textContent = plant.growTime;
+        document.getElementById('modal-growth-stage').textContent = plant.growthStage;
+        document.getElementById('modal-sell-price').textContent = plant.sell + ' Coins';
+        document.getElementById('modal-cost').textContent = plant.cost + ' Coins';
+        document.getElementById('modal-wiki-link').href = plant.wikiLink;
+        document.getElementById('modal-wiki-image').src = plant.wikiImage;
+        
+        modal.classList.add('active');
+    }
+
+    function closePlantInfo() {
+        const modal = document.getElementById('plant-info-modal');
+        modal.classList.remove('active');
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('plant-info-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closePlantInfo();
+        }
+    });
+
+    function renderPlotsAfterLoad() {
+        gridContainer.innerHTML = ''; // ล้างแปลงดินเก่าออกก่อน
+        
+        plotStates.forEach((pState, i) => {
+            const plot = document.createElement('div');
+            plot.className = 'plot';
+            
+            const icon = document.createElement('div');
+            icon.className = 'plot-icon';
+            
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+
+            // ใช้ฟังก์ชันที่คุณเขียนไว้แล้วเพื่อวาดภาพตามสถานะ
+            applySavedPlotState(plot, icon, tooltip, i);
+
+            plot.appendChild(icon);
+            plot.appendChild(tooltip);
+            plot.onclick = () => handlePlotClick(plot, icon, tooltip, i);
+            gridContainer.appendChild(plot);
+        });
+    }
+
+    // ระบบนับเวลาเล่น (เพิ่มไว้ด้านล่างของ Script)
+    setInterval(() => {
+        playTimeSeconds++;
+        // (Optional) แสดงผลเวลาบนหน้าจอ
+        // console.log(`Playtime: ${Math.floor(playTimeSeconds / 60)} minutes`);
+    }, 1000);
+
+    // เซฟเกมอัตโนมัติทุก 1 นาที (เผื่อผู้เล่นลืมเซฟหรือเน็ตหลุด)
+    setInterval(saveGame, 60000);
+
+</script>
+    
+</body>
+</html>
